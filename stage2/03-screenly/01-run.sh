@@ -3,13 +3,10 @@
 on_chroot << EOF
   curl -s https://bootstrap.pypa.io/get-pip.py | python
 
-  # Fetch wait-for-it
-  curl -s -o /tmp/wait-for-it.sh https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
-  chmod +x /tmp/wait-for-it.sh
-
-  git clone https://github.com/Screenly/screenly-ose.git /home/pi/screenly
+  rm -rf /home/pi/screenly
+  git clone $REPOSITORY /home/pi/screenly
   cd /home/pi/screenly
-  git checkout production
+  git checkout $BRANCH
 
   pip install -r requirements/requirements.txt
   mkdir -p /etc/ansible
@@ -18,7 +15,7 @@ on_chroot << EOF
   cd ansible
   HOME=/home/pi MANAGE_NETWORK=true ansible-playbook site.yml --skip-tags enable-ssl,disable-nginx,touches_boot_partition
   chown -R pi:pi /home/pi
-  rm /home/pi/.screenly/initialized
+  rm -f /home/pi/.screenly/initialized
 
   apt-get autoclean
   apt-get clean

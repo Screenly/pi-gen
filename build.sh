@@ -132,6 +132,16 @@ if [ -z "${IMG_NAME}" ]; then
     exit 1
 fi
 
+if [ -z "${REPOSITORY}" ]; then
+  echo "REPOSITORY not set" 1>&2
+  exit 1
+fi
+
+if [ -z "${BRANCH}" ]; then
+  echo "BRANCH not set" 1>&2
+  exit 1
+fi
+
 export USE_QEMU="${USE_QEMU:-0}"
 export IMG_DATE="${IMG_DATE:-"$(date +%Y-%m-%d)"}"
 
@@ -145,6 +155,8 @@ export BASE_DIR
 
 export CLEAN
 export IMG_NAME
+export REPOSITORY
+export BRANCH
 export APT_PROXY
 
 export STAGE
