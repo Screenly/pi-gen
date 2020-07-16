@@ -32,5 +32,10 @@ on_chroot << EOF
   cd /home/pi/screenly
   HOME=/home/pi python -c "import server;server.add_default_assets();server.settings['default_assets']=True;server.settings.save()"
 
+  # Create .env
+  rm -f /home/pi/screenly/.env
+  echo "REPOSITORY=\"$ENV_REPOSITORY\"" > /home/pi/screenly/.env
+  echo "BRANCH=\"$ENV_BRANCH\"" >> /home/pi/screenly/.env
+
   chown -R pi:pi /home/pi
 EOF

@@ -157,6 +157,8 @@ export CLEAN
 export IMG_NAME
 export REPOSITORY
 export BRANCH
+export ENV_REPOSITORY
+export ENV_BRANCH
 export APT_PROXY
 
 export STAGE

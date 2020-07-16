@@ -1,3 +1,5 @@
 IMG_NAME='Screenly-OSE'
 REPOSITORY='https://github.com/Screenly/screenly-ose.git'
 BRANCH='production'
+ENV_REPOSITORY=''
+ENV_BRANCH=''
