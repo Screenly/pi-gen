@@ -30,15 +30,17 @@ while getopts "c:" flag; do
 done
 
 # Ensure that the configuration file is an absolute path
-CONFIG_FILE=$(realpath -s "$CONFIG_FILE")
+if test -x /usr/bin/realpath; then
+	CONFIG_FILE=$(realpath -s "$CONFIG_FILE" || realpath "$CONFIG_FILE")
+fi
 
 # Ensure that the confguration file is present
 if test -z "${CONFIG_FILE}"; then
   echo "Configuration file need to be present in '${DIR}/config' or path passed as parameter"
   exit 1
 else
-  # shellcheck disable=SC1090
-  source "${CONFIG_FILE}"
+	# shellcheck disable=SC1090
+	source ${CONFIG_FILE}
 fi
 
 CONTAINER_NAME=${CONTAINER_NAME:-pigen_work}
@@ -50,6 +52,9 @@ if [ -z "${IMG_NAME}" ]; then
   echo 1>&2
   exit 1
 fi
+
+# Ensure the Git Hash is recorded before entering the docker container
+GIT_HASH=${GIT_HASH:-"$(git rev-parse HEAD)"}
 
 CONTAINER_EXISTS=$(${DOCKER} ps -a --filter name="${CONTAINER_NAME}" -q)
 CONTAINER_RUNNING=$(${DOCKER} ps --filter name="${CONTAINER_NAME}" -q)
@@ -67,23 +72,36 @@ fi
 # Modify original build-options to allow config file to be mounted in the docker container
 BUILD_OPTS="$(echo "${BUILD_OPTS:-}" | sed -E 's@\-c\s?([^ ]+)@-c /config@')"
 
-${DOCKER} build -t pi-gen "${DIR}"
+# Check the arch of the machine we're running on. If it's 64-bit, use a 32-bit base image instead
+case "$(uname -m)" in
+  x86_64|aarch64)
+    BASE_IMAGE=i386/debian:buster
+    ;;
+  *)
+    BASE_IMAGE=debian:buster
+    ;;
+esac
+${DOCKER} build --build-arg BASE_IMAGE=${BASE_IMAGE} -t pi-gen "${DIR}"
+
 if [ "${CONTAINER_EXISTS}" != "" ]; then
-  trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${CONTAINER_NAME}_cont' SIGINT SIGTERM
-  time ${DOCKER} run --rm --privileged \
-    --volume "${CONFIG_FILE}":/config:ro \
-    --volumes-from="${CONTAINER_NAME}" --name "${CONTAINER_NAME}_cont" \
-    pi-gen \
-    bash -e -o pipefail -c "dpkg-reconfigure qemu-user-static &&
+	trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${CONTAINER_NAME}_cont' SIGINT SIGTERM
+	time ${DOCKER} run --rm --privileged \
+		--volume "${CONFIG_FILE}":/config:ro \
+		-e "GIT_HASH=${GIT_HASH}" \
+		--volumes-from="${CONTAINER_NAME}" --name "${CONTAINER_NAME}_cont" \
+		pi-gen \
+		bash -e -o pipefail -c "dpkg-reconfigure qemu-user-static &&
+
 	cd /pi-gen; ./build.sh ${BUILD_OPTS} &&
 	rsync -av work/*/build.log deploy/" &
   wait "$!"
 else
-  trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${CONTAINER_NAME}' SIGINT SIGTERM
-  time ${DOCKER} run --name "${CONTAINER_NAME}" --privileged \
-    --volume "${CONFIG_FILE}":/config:ro \
-    pi-gen \
-    bash -e -o pipefail -c "dpkg-reconfigure qemu-user-static &&
+	trap 'echo "got CTRL+C... please wait 5s" && ${DOCKER} stop -t 5 ${CONTAINER_NAME}' SIGINT SIGTERM
+	time ${DOCKER} run --name "${CONTAINER_NAME}" --privileged \
+		--volume "${CONFIG_FILE}":/config:ro \
+		-e "GIT_HASH=${GIT_HASH}" \
+		pi-gen \
+		bash -e -o pipefail -c "dpkg-reconfigure qemu-user-static &&
 	cd /pi-gen; ./build.sh ${BUILD_OPTS} &&
 	rsync -av work/*/build.log deploy/" &
   wait "$!"
